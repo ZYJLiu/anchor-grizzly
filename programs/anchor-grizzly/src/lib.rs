@@ -1,8 +1,12 @@
-use anchor_lang::prelude::*;
+use anchor_lang::{prelude::*, solana_program::program::invoke_signed};
 use anchor_spl::{
     associated_token::AssociatedToken,
-    metadata::{create_metadata_accounts_v3, Metadata, MetadataAccount},
+    metadata::{create_metadata_accounts_v3, CreateMetadataAccountsV3, Metadata, MetadataAccount},
     token::{Mint, MintTo, Token, TokenAccount},
+};
+use mpl_token_metadata::{
+    pda::{find_master_edition_account, find_metadata_account},
+    state::{Collection, DataV2},
 };
 
 mod instructions;
@@ -26,8 +30,11 @@ pub mod anchor_grizzly {
     pub fn init_reward_points(
         ctx: Context<InitRewardPoints>,
         reward_points_basis_points: u16,
+        uri: String,
+        name: String,
+        symbol: String,
     ) -> Result<()> {
-        instructions::init_reward_points_handler(ctx, reward_points_basis_points)
+        instructions::init_reward_points_handler(ctx, reward_points_basis_points, uri, name, symbol)
     }
 
     pub fn initialize(ctx: Context<Initialize>, data: u64) -> Result<()> {

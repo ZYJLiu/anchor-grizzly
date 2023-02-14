@@ -3,6 +3,10 @@ import { Program } from "@project-serum/anchor"
 import { AnchorGrizzly } from "../target/types/anchor_grizzly"
 import { assert } from "chai"
 import { Metaplex } from "@metaplex-foundation/js"
+import {
+  Metadata,
+  PROGRAM_ID as TOKEN_METADATA_PROGRAM_ID,
+} from "@metaplex-foundation/mpl-token-metadata"
 
 describe("anchor-grizzly", () => {
   // Configure the client to use the local cluster.
@@ -22,6 +26,21 @@ describe("anchor-grizzly", () => {
     program.programId
   )
 
+  const rewardPointsMetaData = {
+    uri: "https://arweave.net/h19GMcMz7RLDY7kAHGWeWolHTmO83mLLMNPzEkF32BQ",
+    name: "NAME",
+    symbol: "SYMBOL",
+  }
+
+  let metadataPDA: anchor.web3.PublicKey
+
+  before(async () => {
+    metadataPDA = await metaplex
+      .nfts()
+      .pdas()
+      .metadata({ mint: rewardPointsPDA })
+  })
+
   it("initialize merchant", async () => {
     const txSig = await program.methods
       .initMerchant()
@@ -39,18 +58,42 @@ describe("anchor-grizzly", () => {
 
   it("initialize reward points mint", async () => {
     const txSig = await program.methods
-      .initRewardPoints(100)
+      .initRewardPoints(
+        100,
+        rewardPointsMetaData.uri,
+        rewardPointsMetaData.name,
+        rewardPointsMetaData.symbol
+      )
       .accounts({
         authority: program.provider.publicKey,
+        metadataAccount: metadataPDA,
+        tokenMetadataProgram: TOKEN_METADATA_PROGRAM_ID,
       })
       .rpc()
 
+    // check merchant account updated
     const merchantAccount = await program.account.merchantState.fetch(
       merchantPDA
     )
-
     assert.isTrue(merchantAccount.rewardPointsMint.equals(rewardPointsPDA))
     assert.equal(merchantAccount.rewardPointsBasisPoints, 100)
+
+    // check metadata account has expected data
+    const accInfo = await connection.getAccountInfo(metadataPDA)
+    const metadata = Metadata.deserialize(accInfo.data, 0)
+
+    assert.ok(
+      metadata[0].data.uri.startsWith(rewardPointsMetaData.uri),
+      "URI in metadata does not start with expected URI"
+    )
+    assert.ok(
+      metadata[0].data.name.startsWith(rewardPointsMetaData.name),
+      "Name in metadata does not start with expected name"
+    )
+    assert.ok(
+      metadata[0].data.symbol.startsWith(rewardPointsMetaData.symbol),
+      "Symbol in metadata does not start with expected symbol"
+    )
   })
 
   // it("initialize", async () => {
