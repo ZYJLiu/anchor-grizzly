@@ -1,14 +1,34 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{
-    metadata::{Metadata, MetadataAccount},
-    token::Mint,
+    associated_token::AssociatedToken,
+    metadata::{create_metadata_accounts_v3, Metadata, MetadataAccount},
+    token::{Mint, MintTo, Token, TokenAccount},
 };
 
+mod instructions;
+use instructions::*;
+mod state;
+use state::*;
+
 declare_id!("7QjqmxnTCSn7kY64Zh8wpjCVmyx3MkHWgqs3ctYaQQAD");
+
+pub const MERCHANT_SEED: &str = "MERCHANT";
+pub const REWARD_POINTS_SEED: &str = "REWARD_POINTS";
 
 #[program]
 pub mod anchor_grizzly {
     use super::*;
+
+    pub fn init_merchant(ctx: Context<InitMerchant>) -> Result<()> {
+        instructions::init_merchant_handler(ctx)
+    }
+
+    pub fn init_reward_points(
+        ctx: Context<InitRewardPoints>,
+        reward_points_basis_points: u16,
+    ) -> Result<()> {
+        instructions::init_reward_points_handler(ctx, reward_points_basis_points)
+    }
 
     pub fn initialize(ctx: Context<Initialize>, data: u64) -> Result<()> {
         let optional_account = &mut ctx.accounts.new_account;
