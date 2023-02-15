@@ -24,7 +24,6 @@ pub struct InitRewardPoints<'info> {
         payer = authority,
         mint::decimals = 6,
         mint::authority = reward_points_mint,
-
     )]
     pub reward_points_mint: Account<'info, Mint>,
 

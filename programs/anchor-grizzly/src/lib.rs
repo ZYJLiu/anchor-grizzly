@@ -1,8 +1,11 @@
-use anchor_lang::{prelude::*, solana_program::program::invoke_signed};
+use anchor_lang::{
+    prelude::*,
+    solana_program::{program::invoke_signed, pubkey, pubkey::Pubkey},
+};
 use anchor_spl::{
     associated_token::AssociatedToken,
     metadata::{create_metadata_accounts_v3, CreateMetadataAccountsV3, Metadata, MetadataAccount},
-    token::{Mint, MintTo, Token, TokenAccount},
+    token::{mint_to, transfer, Mint, MintTo, Token, TokenAccount, Transfer},
 };
 use mpl_token_metadata::{
     pda::{find_master_edition_account, find_metadata_account},
@@ -16,6 +19,8 @@ use state::*;
 
 declare_id!("7QjqmxnTCSn7kY64Zh8wpjCVmyx3MkHWgqs3ctYaQQAD");
 
+#[constant]
+pub const USDC_MINT_PLACEHOLDER: Pubkey = pubkey!("1oveQg3XfAfY2Rw1SpwvTe5tVnaphWRXiNB9pcZE96c");
 pub const MERCHANT_SEED: &str = "MERCHANT";
 pub const REWARD_POINTS_SEED: &str = "REWARD_POINTS";
 
@@ -35,6 +40,10 @@ pub mod anchor_grizzly {
         symbol: String,
     ) -> Result<()> {
         instructions::init_reward_points_handler(ctx, reward_points_basis_points, uri, name, symbol)
+    }
+
+    pub fn transaction(ctx: Context<Transaction>, amount: u64) -> Result<()> {
+        instructions::transaction_handler(ctx, amount)
     }
 
     pub fn initialize(ctx: Context<Initialize>, data: u64) -> Result<()> {

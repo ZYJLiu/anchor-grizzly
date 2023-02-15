@@ -183,6 +183,7 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "mpl-token-metadata",
+ "solana-program",
 ]
 
 [[package]]
