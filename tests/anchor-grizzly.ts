@@ -8,6 +8,7 @@ import {
   Metadata,
   PROGRAM_ID as TOKEN_METADATA_PROGRAM_ID,
 } from "@metaplex-foundation/mpl-token-metadata"
+import NodeWallet from "@project-serum/anchor/dist/cjs/nodewallet"
 const fs = require("fs")
 
 describe("anchor-grizzly", () => {
@@ -30,8 +31,14 @@ describe("anchor-grizzly", () => {
     program.programId
   )
 
-  // metadata for reward points mint
-  const rewardPointsMetaData = {
+  // merchant loyalty nft collection mint
+  const [loyaltyCollectionPDA] = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("LOYALTY_NFT"), merchantPDA.toBuffer()],
+    program.programId
+  )
+
+  // test nft metadata
+  const testMetadata = {
     uri: "https://arweave.net/h19GMcMz7RLDY7kAHGWeWolHTmO83mLLMNPzEkF32BQ",
     name: "NAME",
     symbol: "SYMBOL",
@@ -40,7 +47,6 @@ describe("anchor-grizzly", () => {
   // customer account
   const customer = anchor.web3.Keypair.generate()
 
-  let metadataPDA: anchor.web3.PublicKey
   let usdcPlaceholderMint: anchor.web3.PublicKey
   let paymentDestination: anchor.web3.PublicKey
   let customerUsdcTokenAccount: anchor.web3.PublicKey
@@ -94,20 +100,22 @@ describe("anchor-grizzly", () => {
       customer.publicKey
     )
 
-    // airdrop sol to customer to pay for tx fees
-    await connection.confirmTransaction(
-      await connection.requestAirdrop(
-        customer.publicKey,
-        1 * anchor.web3.LAMPORTS_PER_SOL
-      ),
-      "confirmed"
+    const txSig = await connection.requestAirdrop(
+      customer.publicKey,
+      1 * anchor.web3.LAMPORTS_PER_SOL
     )
 
-    // get metadata account for reward points mint
-    metadataPDA = await metaplex
-      .nfts()
-      .pdas()
-      .metadata({ mint: rewardPointsPDA })
+    const { blockhash, lastValidBlockHeight } =
+      await connection.getLatestBlockhash()
+
+    await connection.confirmTransaction(
+      {
+        blockhash,
+        lastValidBlockHeight,
+        signature: txSig,
+      },
+      "confirmed"
+    )
   })
 
   it("initialize merchant", async () => {
@@ -128,17 +136,23 @@ describe("anchor-grizzly", () => {
   })
 
   it("initialize reward points mint", async () => {
+    // get metadata account for reward points mint
+    const rewardPointsMetadataPDA = await metaplex
+      .nfts()
+      .pdas()
+      .metadata({ mint: rewardPointsPDA })
+
     const rewardPointsBasisPoints = 100
     const txSig = await program.methods
       .initRewardPoints(
         rewardPointsBasisPoints,
-        rewardPointsMetaData.uri,
-        rewardPointsMetaData.name,
-        rewardPointsMetaData.symbol
+        testMetadata.uri,
+        testMetadata.name,
+        testMetadata.symbol
       )
       .accounts({
         authority: wallet.publicKey,
-        metadataAccount: metadataPDA,
+        metadataAccount: rewardPointsMetadataPDA,
         tokenMetadataProgram: TOKEN_METADATA_PROGRAM_ID,
       })
       .rpc()
@@ -154,24 +168,24 @@ describe("anchor-grizzly", () => {
     )
 
     // check metadata account has expected data
-    const accInfo = await connection.getAccountInfo(metadataPDA)
+    const accInfo = await connection.getAccountInfo(rewardPointsMetadataPDA)
     const metadata = Metadata.deserialize(accInfo.data, 0)
 
     assert.ok(
-      metadata[0].data.uri.startsWith(rewardPointsMetaData.uri),
+      metadata[0].data.uri.startsWith(testMetadata.uri),
       "URI in metadata does not start with expected URI"
     )
     assert.ok(
-      metadata[0].data.name.startsWith(rewardPointsMetaData.name),
+      metadata[0].data.name.startsWith(testMetadata.name),
       "Name in metadata does not start with expected name"
     )
     assert.ok(
-      metadata[0].data.symbol.startsWith(rewardPointsMetaData.symbol),
+      metadata[0].data.symbol.startsWith(testMetadata.symbol),
       "Symbol in metadata does not start with expected symbol"
     )
   })
 
-  it("Transaction", async () => {
+  it("transaction", async () => {
     const tx = await program.methods
       .transaction(new anchor.BN(10000))
       .accounts({
@@ -211,6 +225,87 @@ describe("anchor-grizzly", () => {
     )
   })
 
+  it("create collection nft", async () => {
+    const loyaltyCollectionMetadataPDA = await metaplex
+      .nfts()
+      .pdas()
+      .metadata({ mint: loyaltyCollectionPDA })
+
+    const loyaltyCollectionMasterEditionPDA = await metaplex
+      .nfts()
+      .pdas()
+      .masterEdition({ mint: loyaltyCollectionPDA })
+
+    const loyaltyCollectionTokenAccount = await spl.getAssociatedTokenAddress(
+      loyaltyCollectionPDA,
+      wallet.publicKey
+    )
+
+    // Instruction requires more compute units
+    const modifyComputeUnits =
+      anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({
+        units: 250_000,
+      })
+
+    const tx = await program.methods
+      .createCollectionNft(
+        testMetadata.uri,
+        testMetadata.name,
+        testMetadata.symbol
+      )
+      .accounts({
+        authority: wallet.publicKey,
+        merchant: merchantPDA,
+        loyaltyCollectionMint: loyaltyCollectionPDA,
+        metadataAccount: loyaltyCollectionMetadataPDA,
+        masterEdition: loyaltyCollectionMasterEditionPDA,
+        tokenAccount: loyaltyCollectionTokenAccount,
+        tokenMetadataProgram: TOKEN_METADATA_PROGRAM_ID,
+      })
+      .transaction()
+
+    const transferTransaction = new anchor.web3.Transaction().add(
+      modifyComputeUnits,
+      tx
+    )
+
+    const txSig = await anchor.web3.sendAndConfirmTransaction(
+      connection,
+      transferTransaction,
+      [(wallet as NodeWallet).payer]
+    )
+
+    // check merchant account updated
+    const merchantAccount = await program.account.merchantState.fetch(
+      merchantPDA
+    )
+    assert.isTrue(
+      merchantAccount.loyaltyCollectionMint.equals(loyaltyCollectionPDA)
+    )
+
+    // check metadata account has expected data
+    const accInfo = await connection.getAccountInfo(
+      loyaltyCollectionMetadataPDA
+    )
+    const metadata = Metadata.deserialize(accInfo.data, 0)
+
+    assert.ok(
+      metadata[0].data.uri.startsWith(testMetadata.uri),
+      "URI in metadata does not start with expected URI"
+    )
+    assert.ok(
+      metadata[0].data.name.startsWith(testMetadata.name),
+      "Name in metadata does not start with expected name"
+    )
+    assert.ok(
+      metadata[0].data.symbol.startsWith(testMetadata.symbol),
+      "Symbol in metadata does not start with expected symbol"
+    )
+
+    assert.isTrue(metadata[0].data.creators[0].address.equals(wallet.publicKey))
+    assert.isTrue(metadata[0].data.creators[0].verified)
+  })
+
   // it("initialize", async () => {
   //   const MetadataProgramID = new anchor.web3.PublicKey(
   //     "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
@@ -225,7 +320,7 @@ describe("anchor-grizzly", () => {
   //     MetadataProgramID
   //   )
 
-  //   const metadataPDA = await metaplex.nfts().pdas().metadata({ mint: mint })
+  //   const rewardPointsMetadataPDA = await metaplex.nfts().pdas().metadata({ mint: mint })
 
   //   const txHash = await program.methods
   //     .tokenMetadata()
