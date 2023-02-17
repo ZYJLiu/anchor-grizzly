@@ -3,10 +3,12 @@
 use crate::*;
 
 #[derive(Accounts)]
-pub struct CreateCollectionNft<'info> {
-    // authority of merchant account
+pub struct CreateNftInCollection<'info> {
     #[account(mut)]
-    pub authority: Signer<'info>,
+    pub customer: Signer<'info>,
+
+    /// CHECK: Used for merchant account PDA seed
+    pub authority: SystemAccount<'info>,
 
     // merchant account
     #[account(
@@ -17,39 +19,62 @@ pub struct CreateCollectionNft<'info> {
     )]
     pub merchant: Account<'info, MerchantState>,
 
-    // create mint for "collection" nft for merchant loyalty program
+    // collection nft for merchant loyalty program
     #[account(
-        init,
+        mut,
         seeds = [LOYALTY_NFT_SEED.as_bytes(), merchant.key().as_ref()],
         bump,
-        payer = authority,
+        address = merchant.loyalty_collection_mint
+    )]
+    pub loyalty_collection_mint: Account<'info, Mint>,
+
+    // collection metadata account
+    /// CHECK:
+    #[account(
+        mut,
+        address=find_metadata_account(&loyalty_collection_mint.key()).0
+    )]
+    pub collection_metadata_account: UncheckedAccount<'info>,
+
+    /// CHECK: collection master edition account
+    #[account(
+        mut,
+        address=find_master_edition_account(&loyalty_collection_mint.key()).0
+    )]
+    pub collection_master_edition: UncheckedAccount<'info>,
+
+    #[account(
+        init,
+        seeds = [LOYALTY_NFT_SEED.as_bytes(), merchant.key().as_ref(), customer.key().as_ref()],
+        bump,
+        payer = customer,
         mint::decimals = 0,
         mint::authority = loyalty_collection_mint,
         mint::freeze_authority = loyalty_collection_mint
     )]
-    pub loyalty_collection_mint: Account<'info, Mint>,
+    pub customer_nft_mint: Account<'info, Mint>,
 
-    // create metadata account for reward points mint
-    /// CHECK: initialize metadata account for reward points mint via CPI to token-metadata program
+    // create customer metadata account for loyalty nft
+    /// CHECK:
     #[account(
         mut,
-        address=find_metadata_account(&loyalty_collection_mint.key()).0
+        address=find_metadata_account(&customer_nft_mint.key()).0
     )]
     pub metadata_account: UncheckedAccount<'info>,
 
     /// CHECK: master edition account
     #[account(
         mut,
-        address=find_master_edition_account(&loyalty_collection_mint.key()).0
+        address=find_master_edition_account(&customer_nft_mint.key()).0
     )]
     pub master_edition: UncheckedAccount<'info>,
 
     // token account for collection nft
     #[account(
         init_if_needed,
-        payer = authority,
-        associated_token::mint = loyalty_collection_mint,
-        associated_token::authority = authority
+        payer = customer,
+        associated_token::mint = customer_nft_mint,
+        associated_token::authority = customer
     )]
     pub token_account: Account<'info, TokenAccount>,
 
@@ -60,15 +85,12 @@ pub struct CreateCollectionNft<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
-pub fn create_collection_nft_handler(
-    ctx: Context<CreateCollectionNft>,
+pub fn create_nft_in_collection_handler(
+    ctx: Context<CreateNftInCollection>,
     uri: String,
     name: String,
     symbol: String,
 ) -> Result<()> {
-    // update merchant account with loyalty collection mint
-    ctx.accounts.merchant.loyalty_collection_mint = ctx.accounts.loyalty_collection_mint.key();
-
     // PDA for signing
     let merchant = ctx.accounts.merchant.key();
     let signer_seeds: &[&[&[u8]]] = &[&[
@@ -77,11 +99,11 @@ pub fn create_collection_nft_handler(
         &[*ctx.bumps.get("loyalty_collection_mint").unwrap()],
     ]];
 
-    // mint 1 collection nft to token account
+    // mint 1 nft to customer token account
     let cpi_ctx = CpiContext::new_with_signer(
         ctx.accounts.token_program.to_account_info(),
         MintTo {
-            mint: ctx.accounts.loyalty_collection_mint.to_account_info(),
+            mint: ctx.accounts.customer_nft_mint.to_account_info(),
             to: ctx.accounts.token_account.to_account_info(),
             authority: ctx.accounts.loyalty_collection_mint.to_account_info(),
         },
@@ -89,16 +111,16 @@ pub fn create_collection_nft_handler(
     );
     mint_to(cpi_ctx, 1)?;
 
-    // create metadata account for collection nft
+    // create metadata account
     create_metadata_accounts_v3(
         CpiContext::new_with_signer(
             ctx.accounts.token_metadata_program.to_account_info(),
             CreateMetadataAccountsV3 {
                 metadata: ctx.accounts.metadata_account.to_account_info(),
-                mint: ctx.accounts.loyalty_collection_mint.to_account_info(),
+                mint: ctx.accounts.customer_nft_mint.to_account_info(),
                 mint_authority: ctx.accounts.loyalty_collection_mint.to_account_info(),
                 update_authority: ctx.accounts.loyalty_collection_mint.to_account_info(),
-                payer: ctx.accounts.authority.to_account_info(),
+                payer: ctx.accounts.customer.to_account_info(),
                 system_program: ctx.accounts.system_program.to_account_info(),
                 rent: ctx.accounts.rent.to_account_info(),
             },
@@ -109,26 +131,22 @@ pub fn create_collection_nft_handler(
             symbol: symbol,
             uri: uri,
             seller_fee_basis_points: 0,
-            creators: Some(vec![Creator {
-                address: ctx.accounts.authority.key(),
-                verified: false,
-                share: 100,
-            }]),
+            creators: None,
             collection: None,
             uses: None,
         },
         true,
         true,
-        Some(CollectionDetails::V1 { size: 0 }),
+        None,
     )?;
 
-    // create master edition account for collection nft
+    // create master edition account
     create_master_edition_v3(
         CpiContext::new_with_signer(
             ctx.accounts.token_metadata_program.to_account_info(),
             CreateMasterEditionV3 {
-                payer: ctx.accounts.authority.to_account_info(),
-                mint: ctx.accounts.loyalty_collection_mint.to_account_info(),
+                payer: ctx.accounts.customer.to_account_info(),
+                mint: ctx.accounts.customer_nft_mint.to_account_info(),
                 edition: ctx.accounts.master_edition.to_account_info(),
                 mint_authority: ctx.accounts.loyalty_collection_mint.to_account_info(),
                 update_authority: ctx.accounts.loyalty_collection_mint.to_account_info(),
@@ -139,17 +157,25 @@ pub fn create_collection_nft_handler(
             },
             &signer_seeds,
         ),
-        Some(0),
+        None,
     )?;
 
-    // sign metadata to verify creator
-    sign_metadata(CpiContext::new(
-        ctx.accounts.token_metadata_program.to_account_info(),
-        SignMetadata {
-            creator: ctx.accounts.authority.to_account_info(),
-            metadata: ctx.accounts.metadata_account.to_account_info(),
-        },
-    ))?;
+    set_and_verify_sized_collection_item(
+        CpiContext::new_with_signer(
+            ctx.accounts.token_metadata_program.to_account_info(),
+            SetAndVerifySizedCollectionItem {
+                metadata: ctx.accounts.metadata_account.to_account_info(),
+                collection_authority: ctx.accounts.loyalty_collection_mint.to_account_info(),
+                payer: ctx.accounts.customer.to_account_info(),
+                update_authority: ctx.accounts.loyalty_collection_mint.to_account_info(),
+                collection_mint: ctx.accounts.loyalty_collection_mint.to_account_info(),
+                collection_metadata: ctx.accounts.collection_metadata_account.to_account_info(),
+                collection_master_edition: ctx.accounts.collection_master_edition.to_account_info(),
+            },
+            &signer_seeds,
+        ),
+        None,
+    )?;
 
     Ok(())
 }

@@ -19,6 +19,8 @@ describe("anchor-grizzly", () => {
   const connection = program.provider.connection
   const metaplex = Metaplex.make(connection)
 
+  const customer = anchor.web3.Keypair.generate()
+
   // merchant account
   const [merchantPDA] = anchor.web3.PublicKey.findProgramAddressSync(
     [Buffer.from("MERCHANT"), wallet.publicKey.toBuffer()],
@@ -37,6 +39,16 @@ describe("anchor-grizzly", () => {
     program.programId
   )
 
+  // merchant loyalty nft collection mint
+  const [customerNftPDA] = anchor.web3.PublicKey.findProgramAddressSync(
+    [
+      Buffer.from("LOYALTY_NFT"),
+      merchantPDA.toBuffer(),
+      customer.publicKey.toBuffer(),
+    ],
+    program.programId
+  )
+
   // test nft metadata
   const testMetadata = {
     uri: "https://arweave.net/h19GMcMz7RLDY7kAHGWeWolHTmO83mLLMNPzEkF32BQ",
@@ -45,7 +57,6 @@ describe("anchor-grizzly", () => {
   }
 
   // customer account
-  const customer = anchor.web3.Keypair.generate()
 
   let usdcPlaceholderMint: anchor.web3.PublicKey
   let paymentDestination: anchor.web3.PublicKey
@@ -304,6 +315,99 @@ describe("anchor-grizzly", () => {
 
     assert.isTrue(metadata[0].data.creators[0].address.equals(wallet.publicKey))
     assert.isTrue(metadata[0].data.creators[0].verified)
+    assert.isTrue(metadata[0].collectionDetails.__kind === "V1")
+  })
+
+  it("create nft in collection", async () => {
+    const loyaltyCollectionMetadataPDA = await metaplex
+      .nfts()
+      .pdas()
+      .metadata({ mint: loyaltyCollectionPDA })
+
+    const loyaltyCollectionMasterEditionPDA = await metaplex
+      .nfts()
+      .pdas()
+      .masterEdition({ mint: loyaltyCollectionPDA })
+
+    const customerNftMetadataPDA = await metaplex
+      .nfts()
+      .pdas()
+      .metadata({ mint: customerNftPDA })
+
+    const customerNftMasterEditionPDA = await metaplex
+      .nfts()
+      .pdas()
+      .masterEdition({ mint: customerNftPDA })
+
+    const customerNftTokenAccount = await spl.getAssociatedTokenAddress(
+      customerNftPDA,
+      customer.publicKey
+    )
+
+    // Instruction requires more compute units
+    const modifyComputeUnits =
+      anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({
+        units: 300_000,
+      })
+
+    const tx = await program.methods
+      .createNftInCollection(
+        testMetadata.uri,
+        testMetadata.name,
+        testMetadata.symbol
+      )
+      .accounts({
+        customer: customer.publicKey,
+        authority: wallet.publicKey,
+        merchant: merchantPDA,
+        loyaltyCollectionMint: loyaltyCollectionPDA,
+        collectionMetadataAccount: loyaltyCollectionMetadataPDA,
+        collectionMasterEdition: loyaltyCollectionMasterEditionPDA,
+        customerNftMint: customerNftPDA,
+        metadataAccount: customerNftMetadataPDA,
+        masterEdition: customerNftMasterEditionPDA,
+        tokenAccount: customerNftTokenAccount,
+        tokenMetadataProgram: TOKEN_METADATA_PROGRAM_ID,
+      })
+      .transaction()
+
+    const transferTransaction = new anchor.web3.Transaction().add(
+      modifyComputeUnits,
+      tx
+    )
+
+    const txSig = await anchor.web3.sendAndConfirmTransaction(
+      connection,
+      transferTransaction,
+      [customer]
+    )
+
+    // check metadata account has expected data
+    const collectionAccInfo = await connection.getAccountInfo(
+      loyaltyCollectionMetadataPDA
+    )
+    const collectionMetadata = Metadata.deserialize(collectionAccInfo.data, 0)
+    assert.isTrue(
+      // @ts-ignore
+      collectionMetadata[0].collectionDetails.size.eq(new anchor.BN(1))
+    )
+
+    // check metadata account has expected data
+    const accInfo = await connection.getAccountInfo(customerNftMetadataPDA)
+    const metadata = Metadata.deserialize(accInfo.data, 0)
+
+    assert.ok(
+      metadata[0].data.uri.startsWith(testMetadata.uri),
+      "URI in metadata does not start with expected URI"
+    )
+    assert.ok(
+      metadata[0].data.name.startsWith(testMetadata.name),
+      "Name in metadata does not start with expected name"
+    )
+    assert.ok(
+      metadata[0].data.symbol.startsWith(testMetadata.symbol),
+      "Symbol in metadata does not start with expected symbol"
+    )
   })
 
   // it("initialize", async () => {

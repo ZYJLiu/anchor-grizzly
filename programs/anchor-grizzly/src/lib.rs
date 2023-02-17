@@ -5,14 +5,16 @@ use anchor_lang::{
 use anchor_spl::{
     associated_token::AssociatedToken,
     metadata::{
-        create_master_edition_v3, create_metadata_accounts_v3, sign_metadata,
-        CreateMasterEditionV3, CreateMetadataAccountsV3, Metadata, MetadataAccount, SignMetadata,
+        create_master_edition_v3, create_metadata_accounts_v3,
+        set_and_verify_sized_collection_item, sign_metadata, CreateMasterEditionV3,
+        CreateMetadataAccountsV3, Metadata, MetadataAccount, SetAndVerifySizedCollectionItem,
+        SignMetadata,
     },
     token::{mint_to, transfer, Mint, MintTo, Token, TokenAccount, Transfer},
 };
 use mpl_token_metadata::{
     pda::{find_master_edition_account, find_metadata_account},
-    state::{Collection, Creator, DataV2},
+    state::{Collection, CollectionDetails, Creator, DataV2},
 };
 
 mod instructions;
@@ -58,6 +60,16 @@ pub mod anchor_grizzly {
         symbol: String,
     ) -> Result<()> {
         instructions::create_collection_nft_handler(ctx, uri, name, symbol)
+    }
+
+    // create NFT, use as collection NFT
+    pub fn create_nft_in_collection(
+        ctx: Context<CreateNftInCollection>,
+        uri: String,
+        name: String,
+        symbol: String,
+    ) -> Result<()> {
+        instructions::create_nft_in_collection_handler(ctx, uri, name, symbol)
     }
 
     pub fn initialize(ctx: Context<Initialize>, data: u64) -> Result<()> {
