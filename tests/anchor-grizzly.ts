@@ -258,8 +258,10 @@ describe("anchor-grizzly", () => {
         units: 250_000,
       })
 
+    const loyaltyDiscountBasisPoints = 100
     const tx = await program.methods
       .createCollectionNft(
+        loyaltyDiscountBasisPoints,
         testMetadata.uri,
         testMetadata.name,
         testMetadata.symbol
@@ -292,6 +294,10 @@ describe("anchor-grizzly", () => {
     )
     assert.isTrue(
       merchantAccount.loyaltyCollectionMint.equals(loyaltyCollectionPDA)
+    )
+    assert.equal(
+      merchantAccount.loyaltyDiscountBasisPoints,
+      loyaltyDiscountBasisPoints
     )
 
     // check metadata account has expected data

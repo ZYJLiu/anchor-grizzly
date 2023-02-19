@@ -62,12 +62,14 @@ pub struct CreateCollectionNft<'info> {
 
 pub fn create_collection_nft_handler(
     ctx: Context<CreateCollectionNft>,
+    loyalty_discount_basis_points: u16,
     uri: String,
     name: String,
     symbol: String,
 ) -> Result<()> {
     // update merchant account with loyalty collection mint
     ctx.accounts.merchant.loyalty_collection_mint = ctx.accounts.loyalty_collection_mint.key();
+    ctx.accounts.merchant.loyalty_discount_basis_points = loyalty_discount_basis_points;
 
     // PDA for signing
     let merchant = ctx.accounts.merchant.key();

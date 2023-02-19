@@ -2,7 +2,7 @@
 seeds = true
 skip-lint = false
 [programs.localnet]
-anchor_grizzly = "7QjqmxnTCSn7kY64Zh8wpjCVmyx3MkHWgqs3ctYaQQAD"
+anchor_grizzly = "44scmiH8GNTAq9G7i3xQZ3Upg6juJVqwbPvjFG5ySZjn"
 
 [registry]
 url = "https://api.apr.dev"

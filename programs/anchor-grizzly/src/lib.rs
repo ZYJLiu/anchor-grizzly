@@ -1,6 +1,6 @@
 use anchor_lang::{
     prelude::*,
-    solana_program::{program::invoke_signed, pubkey, pubkey::Pubkey},
+    solana_program::{pubkey, pubkey::Pubkey},
 };
 use anchor_spl::{
     associated_token::AssociatedToken,
@@ -14,7 +14,7 @@ use anchor_spl::{
 };
 use mpl_token_metadata::{
     pda::{find_master_edition_account, find_metadata_account},
-    state::{Collection, CollectionDetails, Creator, DataV2},
+    state::{CollectionDetails, Creator, DataV2},
 };
 
 mod instructions;
@@ -22,7 +22,7 @@ use instructions::*;
 mod state;
 use state::*;
 
-declare_id!("7QjqmxnTCSn7kY64Zh8wpjCVmyx3MkHWgqs3ctYaQQAD");
+declare_id!("44scmiH8GNTAq9G7i3xQZ3Upg6juJVqwbPvjFG5ySZjn");
 
 #[constant]
 pub const USDC_MINT_PLACEHOLDER: Pubkey = pubkey!("1oveQg3XfAfY2Rw1SpwvTe5tVnaphWRXiNB9pcZE96c");
@@ -55,11 +55,18 @@ pub mod anchor_grizzly {
     // create NFT, use as collection NFT
     pub fn create_collection_nft(
         ctx: Context<CreateCollectionNft>,
+        loyalty_discount_basis_points: u16,
         uri: String,
         name: String,
         symbol: String,
     ) -> Result<()> {
-        instructions::create_collection_nft_handler(ctx, uri, name, symbol)
+        instructions::create_collection_nft_handler(
+            ctx,
+            loyalty_discount_basis_points,
+            uri,
+            name,
+            symbol,
+        )
     }
 
     // create NFT, use as collection NFT
