@@ -22,10 +22,10 @@ use instructions::*;
 mod state;
 use state::*;
 
-declare_id!("44scmiH8GNTAq9G7i3xQZ3Upg6juJVqwbPvjFG5ySZjn");
+declare_id!("CvH4LqyXWxDMfE8yCqm9o6cTfuNLcTMvzQp1Uij6HkTo");
 
 #[constant]
-pub const USDC_MINT_PLACEHOLDER: Pubkey = pubkey!("1oveQg3XfAfY2Rw1SpwvTe5tVnaphWRXiNB9pcZE96c");
+pub const USDC_MINT_PLACEHOLDER: Pubkey = pubkey!("Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr");
 pub const MERCHANT_SEED: &str = "MERCHANT";
 pub const REWARD_POINTS_SEED: &str = "REWARD_POINTS";
 pub const LOYALTY_NFT_SEED: &str = "LOYALTY_NFT";

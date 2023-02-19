@@ -19,7 +19,7 @@ pub struct CreateCollectionNft<'info> {
 
     // create mint for "collection" nft for merchant loyalty program
     #[account(
-        init,
+        init_if_needed,
         seeds = [LOYALTY_NFT_SEED.as_bytes(), merchant.key().as_ref()],
         bump,
         payer = authority,

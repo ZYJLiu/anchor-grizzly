@@ -44,7 +44,7 @@ pub struct CreateNftInCollection<'info> {
     pub collection_master_edition: UncheckedAccount<'info>,
 
     #[account(
-        init,
+        init_if_needed,
         seeds = [LOYALTY_NFT_SEED.as_bytes(), merchant.key().as_ref(), customer.key().as_ref()],
         bump,
         payer = customer,
@@ -157,7 +157,7 @@ pub fn create_nft_in_collection_handler(
             },
             &signer_seeds,
         ),
-        None,
+        Some(0),
     )?;
 
     set_and_verify_sized_collection_item(
