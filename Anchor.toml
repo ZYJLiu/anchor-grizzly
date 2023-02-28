@@ -1,14 +1,14 @@
 [features]
 seeds = true
 skip-lint = false
-[programs.devnet]
+[programs.localnet]
 anchor_grizzly = "CvH4LqyXWxDMfE8yCqm9o6cTfuNLcTMvzQp1Uij6HkTo"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "devnet"
+cluster = "localnet"
 wallet = "/home/johnliu/.config/solana/id.json"
 
 [scripts]

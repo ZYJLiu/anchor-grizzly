@@ -25,7 +25,8 @@ use state::*;
 declare_id!("CvH4LqyXWxDMfE8yCqm9o6cTfuNLcTMvzQp1Uij6HkTo");
 
 #[constant]
-pub const USDC_MINT_PLACEHOLDER: Pubkey = pubkey!("Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr");
+// pub const USDC_MINT_PLACEHOLDER: Pubkey = pubkey!("Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr");
+pub const USDC_MINT_PLACEHOLDER: Pubkey = pubkey!("1oveQg3XfAfY2Rw1SpwvTe5tVnaphWRXiNB9pcZE96c");
 pub const MERCHANT_SEED: &str = "MERCHANT";
 pub const REWARD_POINTS_SEED: &str = "REWARD_POINTS";
 pub const LOYALTY_NFT_SEED: &str = "LOYALTY_NFT";
@@ -77,6 +78,20 @@ pub mod anchor_grizzly {
         symbol: String,
     ) -> Result<()> {
         instructions::create_nft_in_collection_handler(ctx, uri, name, symbol)
+    }
+
+    pub fn update_reward_points(
+        ctx: Context<UpdateRewardPoints>,
+        reward_points_basis_points: u16,
+    ) -> Result<()> {
+        instructions::update_reward_points_handler(ctx, reward_points_basis_points)
+    }
+
+    pub fn update_loyalty_points(
+        ctx: Context<UpdateLoyaltyPoints>,
+        loyalty_discount_basis_points: u16,
+    ) -> Result<()> {
+        instructions::update_loyalty_points_handler(ctx, loyalty_discount_basis_points)
     }
 
     pub fn initialize(ctx: Context<Initialize>, data: u64) -> Result<()> {

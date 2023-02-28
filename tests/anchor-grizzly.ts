@@ -416,6 +416,44 @@ describe("anchor-grizzly", () => {
     )
   })
 
+  it("update reward points basis points", async () => {
+    const rewardPointsBasisPoints = 200
+    const txSig = await program.methods
+      .updateRewardPoints(rewardPointsBasisPoints)
+      .accounts({
+        authority: wallet.publicKey,
+      })
+      .rpc()
+
+    // check merchant account updated
+    const merchantAccount = await program.account.merchantState.fetch(
+      merchantPDA
+    )
+    assert.equal(
+      merchantAccount.rewardPointsBasisPoints,
+      rewardPointsBasisPoints
+    )
+  })
+
+  it("update loyalty points basis points", async () => {
+    const loyaltyDiscountBasisPoints = 200
+    const txSig = await program.methods
+      .updateLoyaltyPoints(loyaltyDiscountBasisPoints)
+      .accounts({
+        authority: wallet.publicKey,
+      })
+      .rpc()
+
+    // check merchant account updated
+    const merchantAccount = await program.account.merchantState.fetch(
+      merchantPDA
+    )
+    assert.equal(
+      merchantAccount.loyaltyDiscountBasisPoints,
+      loyaltyDiscountBasisPoints
+    )
+  })
+
   // it("initialize", async () => {
   //   const MetadataProgramID = new anchor.web3.PublicKey(
   //     "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
