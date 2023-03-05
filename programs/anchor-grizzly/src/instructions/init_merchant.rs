@@ -3,6 +3,7 @@ use crate::*;
 
 #[derive(Accounts)]
 pub struct InitMerchant<'info> {
+    // authority of merchant account (merchant's wallet)
     #[account(mut)]
     pub authority: Signer<'info>,
 
@@ -16,7 +17,7 @@ pub struct InitMerchant<'info> {
     )]
     pub merchant: Account<'info, MerchantState>,
 
-    // "usdc" mint account
+    // "usdc" mint account, only accept "usdc" as payment
     #[account(
         address = USDC_MINT_PLACEHOLDER
     )]
@@ -37,12 +38,8 @@ pub struct InitMerchant<'info> {
 }
 
 pub fn init_merchant_handler(ctx: Context<InitMerchant>) -> Result<()> {
+    // store authority and payment destination in merchant account
     ctx.accounts.merchant.authority = ctx.accounts.authority.key();
     ctx.accounts.merchant.payment_destination = ctx.accounts.payment_destination.key();
-    msg!("authority: {}", &ctx.accounts.authority.key());
-    msg!(
-        "payment destination: {}",
-        &ctx.accounts.payment_destination.key()
-    );
     Ok(())
 }

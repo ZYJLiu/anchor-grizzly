@@ -47,7 +47,7 @@ pub fn init_reward_points_handler(
     name: String,
     symbol: String,
 ) -> Result<()> {
-    // update merchant account with reward points mint and basis points
+    // update merchant account with reward points mint and basis points (% minted as reward points based on customer checkout amount)
     ctx.accounts.merchant.reward_points_mint = ctx.accounts.reward_points_mint.key();
     ctx.accounts.merchant.reward_points_basis_points = reward_points_basis_points;
 
@@ -59,6 +59,7 @@ pub fn init_reward_points_handler(
         &[*ctx.bumps.get("reward_points_mint").unwrap()],
     ]];
 
+    // create metadata account for reward points mint
     create_metadata_accounts_v3(
         CpiContext::new_with_signer(
             ctx.accounts.token_metadata_program.to_account_info(),

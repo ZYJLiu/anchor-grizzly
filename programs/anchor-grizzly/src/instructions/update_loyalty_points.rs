@@ -1,4 +1,4 @@
-// update loyalty discount basis points
+// update loyalty discount basis points, % discount at checkout for holding NFT
 use crate::*;
 
 #[derive(Accounts)]

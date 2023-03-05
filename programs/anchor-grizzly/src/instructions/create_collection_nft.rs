@@ -17,7 +17,7 @@ pub struct CreateCollectionNft<'info> {
     )]
     pub merchant: Account<'info, MerchantState>,
 
-    // create mint for "collection" nft for merchant loyalty program
+    // create mint for "collection" nft for merchant loyalty NFT program
     #[account(
         init_if_needed,
         seeds = [LOYALTY_NFT_SEED.as_bytes(), merchant.key().as_ref()],
@@ -37,6 +37,7 @@ pub struct CreateCollectionNft<'info> {
     )]
     pub metadata_account: UncheckedAccount<'info>,
 
+    // create master edition account for reward points mint
     /// CHECK: master edition account
     #[account(
         mut,
@@ -67,7 +68,7 @@ pub fn create_collection_nft_handler(
     name: String,
     symbol: String,
 ) -> Result<()> {
-    // update merchant account with loyalty collection mint
+    // update merchant account with loyalty collection mint and discount basis points
     ctx.accounts.merchant.loyalty_collection_mint = ctx.accounts.loyalty_collection_mint.key();
     ctx.accounts.merchant.loyalty_discount_basis_points = loyalty_discount_basis_points;
 

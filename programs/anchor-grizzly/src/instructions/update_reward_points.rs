@@ -1,4 +1,4 @@
-// update reward points basis points
+// update reward points basis points, % minted at checkout
 use crate::*;
 
 #[derive(Accounts)]

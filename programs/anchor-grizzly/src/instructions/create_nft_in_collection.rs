@@ -1,9 +1,10 @@
-// create merchant collection nft for nft loyalty program
+// create nft in loyalty NFT collection
 // note this instruction requires requesting extra compute units
 use crate::*;
 
 #[derive(Accounts)]
 pub struct CreateNftInCollection<'info> {
+    // customer getting minted NFT
     #[account(mut)]
     pub customer: Signer<'info>,
 
@@ -43,6 +44,9 @@ pub struct CreateNftInCollection<'info> {
     )]
     pub collection_master_edition: UncheckedAccount<'info>,
 
+    // mint address for customer loyalty nft
+    // note, this seems to break if customer burns their nft and tries to mint again
+    // may be due to metadata/master edition account not being closed when burned
     #[account(
         init_if_needed,
         seeds = [LOYALTY_NFT_SEED.as_bytes(), merchant.key().as_ref(), customer.key().as_ref()],
@@ -69,7 +73,7 @@ pub struct CreateNftInCollection<'info> {
     )]
     pub master_edition: UncheckedAccount<'info>,
 
-    // token account for collection nft
+    // customer token account for loyalty nft
     #[account(
         init_if_needed,
         payer = customer,
@@ -160,6 +164,7 @@ pub fn create_nft_in_collection_handler(
         Some(0),
     )?;
 
+    // verify nft as part of collection
     set_and_verify_sized_collection_item(
         CpiContext::new_with_signer(
             ctx.accounts.token_metadata_program.to_account_info(),

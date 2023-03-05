@@ -1,14 +1,14 @@
-// checkout transaction, customer pays merchant "usdc", customer also gets minted reward points
+// mint reward points, use to airdrop customers reward points
 use crate::*;
 
 #[derive(Accounts)]
-pub struct Transaction<'info> {
-    // customer paying merchant
+pub struct MintRewardPoints<'info> {
+    // authority of merchant account
     #[account(mut)]
-    pub customer: Signer<'info>,
+    pub authority: Signer<'info>,
 
-    /// CHECK: used for merchant account PDA seed
-    pub authority: SystemAccount<'info>,
+    // customer getting reward points
+    pub customer: SystemAccount<'info>,
 
     // merchant account
     #[account(
@@ -17,22 +17,6 @@ pub struct Transaction<'info> {
         constraint = merchant.authority == authority.key()
     )]
     pub merchant: Account<'info, MerchantState>,
-
-    // merchant's payment destination
-    #[account(
-        mut,
-        token::mint = USDC_MINT_PLACEHOLDER,
-        address = merchant.payment_destination,
-    )]
-    pub payment_destination: Account<'info, TokenAccount>,
-
-    // customer's "usdc" token account
-    #[account(
-        mut,
-        token::mint = USDC_MINT_PLACEHOLDER,
-        constraint = customer_usdc_token_account.owner == customer.key()
-    )]
-    pub customer_usdc_token_account: Account<'info, TokenAccount>,
 
     // merchant's reward points mint
     #[account(
@@ -46,7 +30,7 @@ pub struct Transaction<'info> {
     // init customer's reward points token account if one does not exist
     #[account(
         init_if_needed,
-        payer = customer,
+        payer = authority,
         associated_token::mint = reward_points_mint,
         associated_token::authority = customer
     )]
@@ -58,7 +42,7 @@ pub struct Transaction<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
-pub fn transaction_handler(ctx: Context<Transaction>, amount: u64) -> Result<()> {
+pub fn mint_reward_points_handler(ctx: Context<MintRewardPoints>, amount: u64) -> Result<()> {
     // reward points mint PDA is also mint authority
     let merchant = ctx.accounts.merchant.key();
     let signer_seeds: &[&[&[u8]]] = &[&[
@@ -66,25 +50,6 @@ pub fn transaction_handler(ctx: Context<Transaction>, amount: u64) -> Result<()>
         merchant.as_ref(),
         &[*ctx.bumps.get("reward_points_mint").unwrap()],
     ]];
-
-    // transfer payment from customer to merchant
-    msg!("Transfer Tokens");
-    let cpi_ctx = CpiContext::new(
-        ctx.accounts.token_program.to_account_info(),
-        Transfer {
-            from: ctx.accounts.customer_usdc_token_account.to_account_info(),
-            authority: ctx.accounts.customer.to_account_info(),
-            to: ctx.accounts.payment_destination.to_account_info(),
-        },
-    );
-    transfer(cpi_ctx, amount)?;
-
-    // calculate reward points
-    let reward_amount = amount
-        .checked_mul(ctx.accounts.merchant.reward_points_basis_points as u64)
-        .unwrap()
-        .checked_div(10000)
-        .unwrap();
 
     // mint reward points to customer
     msg!("Minting Reward Points Tokens");
@@ -97,7 +62,6 @@ pub fn transaction_handler(ctx: Context<Transaction>, amount: u64) -> Result<()>
         },
         signer_seeds,
     );
-    mint_to(cpi_ctx, reward_amount)?;
-
+    mint_to(cpi_ctx, amount)?;
     Ok(())
 }

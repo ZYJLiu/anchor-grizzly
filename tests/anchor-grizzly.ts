@@ -454,83 +454,27 @@ describe("anchor-grizzly", () => {
     )
   })
 
-  // it("initialize", async () => {
-  //   const MetadataProgramID = new anchor.web3.PublicKey(
-  //     "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
-  //   )
+  it("mint reward points", async () => {
+    const prebalance = Number(
+      (await connection.getTokenAccountBalance(customerRewardTokenAccount))
+        .value.amount
+    )
 
-  //   const mint = new anchor.web3.PublicKey(
-  //     "GuGuSFXcdjMJyfHxsD5tZkZYiX45jieXHqFrfKoH8TdU"
-  //   )
+    const tx = await program.methods
+      .mintRewardPoints(new anchor.BN(10000))
+      .accounts({
+        authority: wallet.publicKey,
+        customer: customer.publicKey,
+        merchant: merchantPDA,
+        customerRewardTokenAccount: customerRewardTokenAccount,
+      })
+      .rpc()
 
-  //   const [pda] = await anchor.web3.PublicKey.findProgramAddressSync(
-  //     [Buffer.from("metadata"), MetadataProgramID.toBuffer(), mint.toBuffer()],
-  //     MetadataProgramID
-  //   )
+    const postbalance = Number(
+      (await connection.getTokenAccountBalance(customerRewardTokenAccount))
+        .value.amount
+    )
 
-  //   const rewardPointsMetadataPDA = await metaplex.nfts().pdas().metadata({ mint: mint })
-
-  //   const txHash = await program.methods
-  //     .tokenMetadata()
-  //     .accounts({
-  //       metadataAccount: pda,
-  //       mint: mint,
-  //       signer: wallet.publicKey,
-  //     })
-  //     .rpc()
-
-  //   // Confirm transaction
-  //   await connection.confirmTransaction(txHash)
-  //   console.log(txHash)
-  // })
-
-  // it("initialize", async () => {
-  //   // Generate keypair for the new account
-  //   const newAccountKp = new anchor.web3.Keypair()
-
-  //   // Send transaction
-  //   const data = new anchor.BN(42)
-  //   const txHash = await program.methods
-  //     .initialize(data)
-  //     .accounts({
-  //       newAccount: null,
-  //       signer: wallet.publicKey,
-  //       systemProgram: anchor.web3.SystemProgram.programId,
-  //     })
-  //     .rpc()
-
-  //   // Confirm transaction
-  //   await connection.confirmTransaction(txHash)
-  //   console.log(txHash)
-  // })
-
-  // it("initialize", async () => {
-  //   // Generate keypair for the new account
-  //   const newAccountKp = new anchor.web3.Keypair()
-
-  //   // Send transaction
-  //   const data = new anchor.BN(42)
-  //   const txHash = await program.methods
-  //     .initialize(data)
-  //     .accounts({
-  //       newAccount: newAccountKp.publicKey,
-  //       signer: wallet.publicKey,
-  //       systemProgram: anchor.web3.SystemProgram.programId,
-  //     })
-  //     .signers([newAccountKp])
-  //     .rpc()
-
-  //   // Confirm transaction
-  //   await connection.confirmTransaction(txHash)
-
-  //   // Fetch the created account
-  //   const newAccount = await program.account.newAccount.fetch(
-  //     newAccountKp.publicKey
-  //   )
-
-  //   console.log("On-chain data is:", newAccount.data.toString())
-
-  //   // Check whether the data on-chain is equal to local 'data'
-  //   assert(data.eq(newAccount.data))
-  // })
+    assert.strictEqual(prebalance + 10000, postbalance)
+  })
 })
